@@ -1,0 +1,16 @@
+[package]
+name = "flakec-ast"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+plex = { version = "0.3.0", default-features = false, features = ["parser"] }
+
+[dependencies.lexer]
+package = "flakec-lexer"
+path = "../flakec-lexer"
+features = ["flakec_dep_of_compiler","use_const"]
+
+
+[features]
+flakec_dep_of_compiler = []

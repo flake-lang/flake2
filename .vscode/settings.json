@@ -1,5 +1,6 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./compiler/flakec-lexer/Cargo.toml"
+        "./compiler/flakec-lexer/Cargo.toml",
+        "./compiler/flakec-backend/Cargo.toml"
     ]
 }

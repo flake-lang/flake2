@@ -1,22 +1,43 @@
 //! Token
 
+
+use std::marker::ConstParamTy;
+
 use crate::{keyword::Keyword, literal::Literal, span::Span};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 #[non_exhaustive]
 pub enum TokenKind<'input>{
     Literal(Literal<'input>),
     Keyword(Keyword),
     Identifier(&'input str),
+    Basic(BasicToken),
+    EOF,
+    
+    /// Default
+    #[default] _Invalid,
+}
+
+#[derive(PartialEq, Eq, ConstParamTy)]
+pub enum ConstToken{
+    Keyword(Keyword),
+    Basic(BasicToken)
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, ConstParamTy)]
+#[non_exhaustive]
+pub enum BasicToken{
     Plus,
     Minus,
     Star,
     Slash,
     Percent,
+    ExplMark,
     Caret,
     Hash,
     EqEq,
     TildeEq,
+    NotEq,
     LtEq,
     GtEq,
     Lt,
@@ -34,14 +55,40 @@ pub enum TokenKind<'input>{
     Dot,
     DotDot,
     DotDotDot,
-    EOF
 }
 
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct Token<'a>{
     pub(crate) kind: TokenKind<'a>,
     pub(crate) span: Span
+}
+
+/// A [Token]'s Type.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum TokenType{
+    Operator,
+    Unary,
+    Comparison,
+    Assignment,
+    Keyword,
+    Literal,
+    Control,
+    Identifier,
+    Other,
+}
+
+impl BasicToken{
+    pub fn get_type(&self) -> TokenType{
+        use BasicToken::*;
+        match self {
+            Plus | Minus | Star | Slash | Percent | ExplMark => TokenType::Operator,
+            EqEq | Lt | Gt | LtEq | GtEq => TokenType::Comparison,
+
+            Eq => TokenType::Assignment,
+            _ => TokenType::Other
+        }
+    }
 }
 
 impl<'a> Token<'a>{
@@ -58,4 +105,31 @@ impl<'a> Token<'a>{
             _ => None
         }
     }
+
+    pub fn ident(&'a self) -> Option<&'a str> {
+        match self.kind(){ 
+            TokenKind::Identifier(ident) => Some(*ident),
+            _ => None
+        } 
+    }
+
+    pub fn get_type(&self) -> TokenType{
+        match self.kind(){
+            TokenKind::Basic(bt) => bt.get_type(),
+            TokenKind::Identifier(_) => TokenType::Identifier,
+            TokenKind::Keyword(_) => TokenType::Keyword,
+            TokenKind::Literal(_) => TokenType::Literal,
+            TokenKind::EOF => TokenType::Control,
+            _ => TokenType::Other
+        }
+    }
+
+    pub fn span(&self) -> Span{
+        self.span
+    }
+
+    pub fn kind(&self) -> &TokenKind{
+        &self.kind
+    }
+
 }

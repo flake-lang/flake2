@@ -6,9 +6,33 @@ version = 3
 name = "flake-lang"
 version = "0.1.0"
 dependencies = [
+ "flakec-ast",
  "flakec-lexer",
  "flakec-parser",
 ]
+
+[[package]]
+name = "flakec-ast"
+version = "0.0.0"
+dependencies = [
+ "flakec-lexer",
+ "plex",
+]
+
+[[package]]
+name = "flakec-backend"
+version = "0.0.0"
+dependencies = [
+ "flakec-lexer",
+]
+
+[[package]]
+name = "flakec-backend-llvm"
+version = "0.0.0"
+
+[[package]]
+name = "flakec-codegen"
+version = "0.0.0"
 
 [[package]]
 name = "flakec-lexer"
@@ -19,8 +43,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "flakec-middle"
+version = "0.0.0"
+
+[[package]]
 name = "flakec-parser"
 version = "0.0.0"
+dependencies = [
+ "flakec-lexer",
+ "flakec-parser-derive",
+]
+
+[[package]]
+name = "flakec-parser-derive"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "lalr"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "106d7548f95adbe3019b4fc4954554d7b72535867aa9ce326d2f766b68958de7"
 
 [[package]]
 name = "lexgen"
@@ -41,6 +87,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4baf00ccbcc047f3b67cec7ba751677aa58c0254dd1c2d2671aabd40647710cc"
 dependencies = [
  "unicode-width",
+]
+
+[[package]]
+name = "plex"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23db74c6485b55f923692cda71d300e1d8f593d18ccba17fd54a90006299ff4b"
+dependencies = [
+ "lalr",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

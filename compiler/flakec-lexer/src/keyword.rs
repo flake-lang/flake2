@@ -1,6 +1,8 @@
 //! Keyword
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+use std::marker::ConstParamTy;
+
+#[derive(Debug, Clone, PartialEq, Eq, ConstParamTy)]
 #[non_exhaustive]
 pub enum Keyword{
     Fn,

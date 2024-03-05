@@ -1,11 +1,8 @@
 use lexer::stream::TokenStream;
 
-
-
 pub fn main(){
-    let toks = TokenStream::new(include_str!("../test.fl"));
+    let mut toks = TokenStream::new(include_str!("../test.fl"));
     
-    for tok in toks{
-        eprintln!("{:?}", tok);
-    }
+    dbg!(ast::expression::parse_expr(&mut toks, false));
+
 }

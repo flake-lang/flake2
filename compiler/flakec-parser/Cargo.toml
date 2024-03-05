@@ -5,7 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
+[dependencies.lexer]
+package = "flakec-lexer"
+path = "../flakec-lexer"
+features = ["flakec_dep_of_compiler","use_const"]
+
+
+[dependencies.__derive]
+package = "flakec-parser-derive"
+path = "../flakec-parser-derive"
 
 [features]
 flakec_dep_of_compiler = []

@@ -7,6 +7,7 @@ use std::string::String as RustString;
 use TokenKind::*;
 use crate::Keyword::*;
 use crate::Literal::*;
+use crate::token::BasicToken::*;
 
 #[derive(Debug, Clone, PartialEq, Default, Eq)]
 pub struct LexerState {
@@ -29,33 +30,39 @@ lexer! {
 
     rule Init{
         $whitespace,
+ 
 
-        "+" = Plus,
-        "-" = Minus,
-        "*" = Star,
-        "/" = Slash,
-        "%" = Percent,
-        "^" = Caret,
-        "#" = Hash,
-        "==" =EqEq,
-        "~=" =TildeEq,
-        "<=" =LtEq,
-        ">=" =GtEq,
-        "<" = Lt,
-        ">" = Gt,
-        "=" = Eq,
-        "(" = LParen,
-        ")" = RParen,
-        "{" = LBrace,
-        "}" = RBrace,
-        "]" = RBracket,
-        "[" = LBracket,
-        ";" = Semicolon,
-        ":" = Colon,
-        "," = Comma,
-        "." = Dot,
-        ".." = DotDot,
-        "..." = DotDotDot,
+        // ==== Basic ====
+        "+"   =  Basic(Plus),
+        "-"   =  Basic(Minus),
+        "*"   =  Basic(Star),
+        "/"   =  Basic(Slash),
+        "%"   =  Basic(Percent),
+        "^"   =  Basic(Caret),
+        "#"   =  Basic(Hash),
+        "=="  = Basic(EqEq),
+        "~="  = Basic(TildeEq),
+        "<="  = Basic(LtEq),
+        ">="  = Basic(GtEq),
+        "!="  = Basic(NotEq),
+        "<"   =  Basic(Lt),
+        ">"   =  Basic(Gt),
+        "="   =  Basic(Eq),
+        "("   =  Basic(LParen),
+        ")"   =  Basic(RParen),
+        "{"   =  Basic(LBrace),
+        "}"   =  Basic(RBrace),
+        "]"   =  Basic(RBracket),
+        "["   =  Basic(LBracket),
+        ";"   =  Basic(Semicolon),
+        ":"   =  Basic(Colon),
+        "!"   =  Basic(ExplMark),
+        ","   =  Basic(Comma),
+        "."   =  Basic(Dot),
+        ".."  = Basic(DotDot),
+        "..." = Basic(DotDotDot),
+
+        // ==== Keywords ====
         "fn" = Keyword(Fn),
         "let" = Keyword(Let),
         "construct" = Keyword(Construct),
@@ -67,7 +74,11 @@ lexer! {
         "break" = Keyword(Break),
         "continue" = Keyword(Continue),
         
+        // ==== Semi-Keywords ====
+        "true" = Literal(Boolean(true)),
+        "false" = Literal(Boolean(false)),
 
+        // ==== Other ====
         '"' => |lexer| {
             lexer.state().str_delim = Quote::Double;
             lexer.state().string_buf.clear();

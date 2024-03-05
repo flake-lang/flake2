@@ -1,0 +1,11 @@
+[package]
+name = "flakec-parser-derive"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+syn = { version = "*", features = ["full"]}
+quote = "*"
+
+[lib]
+proc-macro = true

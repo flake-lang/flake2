@@ -11,3 +11,4 @@ lexgen_util = "*"
 
 [features]
 flakec_dep_of_compiler = []
+use_const = []

@@ -1,0 +1,10 @@
+[package]
+name = "flakec-backend-llvm"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+
+
+[features]
+flakec_dep_of_compiler = []

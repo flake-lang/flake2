@@ -1,0 +1,19 @@
+[workspace]
+members = [ "compiler/flakec-parser","compiler/flakec-lexer"]
+
+[package]
+name = "flake-lang"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.lexer]
+package = "flakec-lexer"
+path = "compiler/flakec-lexer"
+features = ["flakec_dep_of_compiler"]
+
+[dependencies.parser]
+package = "flakec-parser"
+path = "compiler/flakec-parser"
+features = ["flakec_dep_of_compiler"]

@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./compiler/flakec-lexer/Cargo.toml"
+    ]
+}

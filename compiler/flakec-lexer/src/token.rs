@@ -60,8 +60,8 @@ pub enum BasicToken{
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct Token<'a>{
-    pub(crate) kind: TokenKind<'a>,
-    pub(crate) span: Span
+    pub kind: TokenKind<'a>,
+    pub span: Span
 }
 
 /// A [Token]'s Type.

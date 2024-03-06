@@ -1,24 +1,32 @@
+use std::convert::Infallible;
+
 use lexer::stream::TokenStream;
 
+use crate::{ParseError, Spanned};
+
 #[derive(Debug, Clone)]
-pub enum Value{
+pub enum Value_{
     Str(String),
     Number{
         is_negative: bool,
         value: String
     },
-    Boolean(bool)
+    Boolean(bool),
 }
 
-pub fn parse_value<'a>(input: &mut TokenStream<'a>) -> Option<Value>{
+pub type Value = Spanned<Value_>;
 
+pub fn parse_value<'a>(input: &mut TokenStream<'a>) -> Result<Value, ParseError<'a, Infallible>>{
+    let prev = input.next().ok_or(ParseError::UnexpectedEndOfFile)?;
 
-    match dbg!(input.next())?.literal()?{
-        lexer::literal::Literal::String(s) => Some(Value::Str((*s).to_owned())),
-        lexer::literal::Literal::OwnedString(s) => Some(Value::Str(s.clone())),
-        lexer::literal::Literal::Number(n) => Some(Value::Number { is_negative: false, value: (*n).to_owned()}),
-        lexer::literal::Literal::SignedNumber(n) => Some(Value::Number { is_negative: true, value: (*n).to_owned()}),
-        lexer::literal::Literal::Boolean(b) => Some(Value::Boolean(*b)),
-        _ => None
-    }
+    let val = match prev.literal().ok_or(ParseError::UnexpectedToken(prev.clone()))?.clone(){
+        lexer::literal::Literal::String(s) => Ok(Value_::Str((*s).to_owned())),
+        lexer::literal::Literal::OwnedString(s) => Ok(Value_::Str(s.clone())),
+        lexer::literal::Literal::Number(n) => Ok(Value_::Number { is_negative: false, value: (*n).to_owned()}),
+        lexer::literal::Literal::SignedNumber(n) => Ok(Value_::Number { is_negative: true, value: (*n).to_owned()}),
+        lexer::literal::Literal::Boolean(b) => Ok(Value_::Boolean(b)),
+        _ => return Err(ParseError::UnexpectedToken(prev))
+    }?;
+
+    Ok(Value::with_span(val, prev.span()))
 }

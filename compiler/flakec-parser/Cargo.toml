@@ -11,9 +11,9 @@ path = "../flakec-lexer"
 features = ["flakec_dep_of_compiler","use_const"]
 
 
-[dependencies.__derive]
-package = "flakec-parser-derive"
-path = "../flakec-parser-derive"
+[dependencies.ast]
+package = "flakec-ast"
+path = "../flakec-ast"
 
 [features]
 flakec_dep_of_compiler = []

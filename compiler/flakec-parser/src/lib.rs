@@ -1,43 +1,23 @@
-//! Flakec Parser
+use lexer::stream::TokenStream;
 
-#![feature(adt_const_params)]
 
-pub mod lit;
-
-#[macro_use] extern crate __derive;
-
-use lexer::{keyword::{self, Keyword}, stream::TokenStream, token::{BasicToken, ConstToken as ConstTokenKind, Token as LexToken, TokenKind}};
-
-pub trait Parse: Sized{
-    type Output;
-
-    fn parse(input: &mut TokenStream) -> Option<Self>;
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ParserState {
+    Normal,
 }
 
-pub trait TokenStreamExt {
-    fn parse<T: Parse>(&mut self) -> Option<T>;
+pub struct Parser<'a>{
+    state: ParserState,
+    input: &'a mut TokenStream<'a>,
 }
 
-impl<'a> TokenStreamExt for TokenStream<'a>{
-    fn parse<T: Parse>(&mut self) -> Option<T> {
-        T::parse(self)
-    }
-}
-
-pub struct ConstToken<const TOKEN: ConstTokenKind>;
-
-impl<const TOKEN: ConstTokenKind> Parse for ConstToken<TOKEN>{
-    type Output = Self;
-
-    fn parse(input: &mut TokenStream) -> Option<Self> {
-        if match (TOKEN, input.peek()?.kind()){
-          (ConstTokenKind::Basic(cb),  TokenKind::Basic(basic)) => cb == *basic,
-          (ConstTokenKind::Keyword(ckw),  TokenKind::Keyword(kw)) => ckw == *kw,
-          _ => false
-        } {
-            Some(Self)
-        }else {
-            None
+impl<'a> Parser<'a>{
+    pub fn new(input: &'a mut TokenStream<'a>) -> Self{
+        Self{
+            state: ParserState::Normal,
+            input
         }
     }
+
 }

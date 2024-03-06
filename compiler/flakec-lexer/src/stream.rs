@@ -1,6 +1,6 @@
 //! TokenStream
 
-use std::{convert::Infallible, str::Chars};
+use std::{convert::Infallible, str::Chars, string::ParseError};
 
 use lexgen_util::{LexerError, Loc};
 
@@ -19,9 +19,10 @@ impl<'a> Iterator for TokenStream<'a> {
     type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let res = self.buffer.get(self.position).as_ref().cloned()?.clone(); // FIXME
         self.position += 1;
 
-        self.buffer.get(self.position).as_ref().cloned()?.clone() // FIXME
+        res
     }
 }
 
@@ -53,6 +54,7 @@ impl<'a> TokenStream<'a> {
     pub fn peek(&mut self) -> Option<&Token<'a>>{
         let tok = self.buffer.get(self.position)?;
 
+
         tok.as_ref()
     }
 
@@ -65,4 +67,22 @@ impl<'a> TokenStream<'a> {
     pub fn backtrack(&mut self, dst: usize) {
         self.position -= dst;
     }
+
+    pub fn sliced(&'a mut self) -> &'a [Option<Token<'a>>] {
+        unsafe {
+            let ptr = (&self.buffer).as_ptr();
+
+            core::slice::from_raw_parts(ptr.add(self.position), self.buffer.len() - self.position)
+        } 
+    }
+
+    pub fn pos(&self) -> usize{
+        self.position
+    }
+
+    pub fn set_pos(&mut self, v: usize) {
+        self.position = v;
+    }
+
+ 
 }

@@ -108,7 +108,7 @@ lexer! {
             lexer.return_(TokenKind::Literal(Number(match_)))
         },
 
-        $digit+ ('.'? $digit+ (('e' | 'E') '-' $digit+)?)? => |lexer| {
+        '-' $digit+ ('.'? $digit+ (('e' | 'E') $digit+)?)? => |lexer| {
             let match_ = lexer.match_();
             lexer.return_(TokenKind::Literal(SignedNumber(match_)))
         },

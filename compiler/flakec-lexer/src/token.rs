@@ -52,6 +52,8 @@ pub enum BasicToken{
     Semicolon,
     Colon,
     Comma,
+    PlusEq,
+    MinusEq,
     Dot,
     DotDot,
     DotDotDot,
@@ -83,9 +85,8 @@ impl BasicToken{
         use BasicToken::*;
         match self {
             Plus | Minus | Star | Slash | Percent | ExplMark => TokenType::Operator,
-            EqEq | Lt | Gt | LtEq | GtEq => TokenType::Comparison,
-
-            Eq => TokenType::Assignment,
+            EqEq | Lt | Gt | LtEq | GtEq | NotEq => TokenType::Comparison,
+            Eq | PlusEq | MinusEq => TokenType::Assignment,
             _ => TokenType::Other
         }
     }
@@ -106,10 +107,10 @@ impl<'a> Token<'a>{
         }
     }
 
-    pub fn ident(&'a self) -> Option<&'a str> {
+    pub fn ident(&'a self) -> Result<&'a str, Self> {
         match self.kind(){ 
-            TokenKind::Identifier(ident) => Some(*ident),
-            _ => None
+            TokenKind::Identifier(ident) => Ok(*ident),
+            _ => Err(self.clone())
         } 
     }
 

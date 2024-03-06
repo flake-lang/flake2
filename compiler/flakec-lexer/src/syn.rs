@@ -42,6 +42,8 @@ lexer! {
         "#"   =  Basic(Hash),
         "=="  = Basic(EqEq),
         "~="  = Basic(TildeEq),
+        "+="  = Basic(PlusEq),
+        "-=" = Basic(MinusEq),
         "<="  = Basic(LtEq),
         ">="  = Basic(GtEq),
         "!="  = Basic(NotEq),

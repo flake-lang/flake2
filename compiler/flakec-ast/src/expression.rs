@@ -45,10 +45,6 @@ pub enum Expression {
     },
 }
 
-struct Unary_ {
-    op: Operator,
-}
-
 pub fn restore_on_err<'a, T, F>(
     f: F,
     input: &mut TokenStream<'a>,
@@ -67,17 +63,6 @@ where
     }
 }
 
-pub fn expect_token<'a>(
-    input: &mut TokenStream<'a>,
-    tok: TokenKind,
-) -> Result<(), ParseError<'a, Infallible>> {
-    let prev = input.next().ok_or(ParseError::UnexpectedEndOfFile)?;
-    if prev.kind() == &tok {
-        Ok(())
-    } else {
-        Err(ParseError::UnexpectedToken(prev))
-    }
-}
 
 pub fn parse_unary<'a>(
     input: &mut TokenStream<'a>,
@@ -131,7 +116,7 @@ pub fn parse_value_expr<'a>(
                         }
                     };
 
-                    _ = input.next();
+                   //  _ = input.next();
 
                     Ok(Expression::FunctionCall { name: ident.to_string(), args })
                 }
@@ -164,7 +149,7 @@ pub fn parse_expr<'a>(
 ) -> Result<Expression, ParseError<'a, Infallible>> {
     let expr = parse_value_expr(input)?;
 
-    let tok = match dbg!(input.peek()) {
+    let tok = match input.peek() {
         Some(t) => t,
         None => return Ok(expr),
     };

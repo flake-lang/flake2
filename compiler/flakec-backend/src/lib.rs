@@ -1,19 +1,26 @@
-use std::{backtrace, convert::Infallible, error::Error as StdError, marker::PhantomData, ops::Deref};
+use std::error::Error as StdError;
 
-pub mod types;
 pub mod dummy;
+pub mod types;
 
-
-
-pub trait Backend<'a>: 'a{
+/// A Flake Compiler [Backend].
+pub trait Backend<'a>: 'a {
+    /// Compiles an [AST].
     fn compile(&'a mut self, _: flakec_middle::ast::AST) -> Result<(), Box<dyn StdError>>;
 
     #[cold]
-    fn name(&'a self) -> &'static str;
+    fn name(&'a self) -> &'a str;
     #[cold]
     fn version(&'a self) -> &'a str;
-}
 
-pub fn test<'a>(backend: &'a dyn Backend<'a>){
+    fn supports_comptime(&'a self) -> bool {
+        false
+    }
     
+    fn is_compatible_with<T: Backend<'a>>(&'a self, _: T) -> bool
+    where
+        Self: Sized,
+    {
+        false
+    }
 }

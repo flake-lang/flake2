@@ -1,11 +1,13 @@
 use std::{convert::Infallible, fmt::Debug, ops::Deref};
 
 use lexer::{span::Span, stream::TokenStream, token::{Token, TokenKind}};
+use statement::Statement;
 
 pub mod expression;
 pub mod operator;
 pub mod statement;
 pub mod value;
+pub mod types;
 
 #[derive(Debug, Clone)]
 pub struct Spanned<T> {
@@ -13,7 +15,26 @@ pub struct Spanned<T> {
     span: Span,
 }
 
+#[derive(Debug, Clone)]
+pub struct AST<'a> {
+    pub _nodes: Vec<Statement<'a>>
+}
 
+impl<'a> AST<'a>{
+    pub fn parse(input: &mut TokenStream<'a>) -> Result<Self, ParseError<'a, Infallible>>{
+        let mut nodes: Vec<Statement> = vec![];
+
+        loop {
+            if input.peek().is_none() {
+                break;
+            }
+
+            nodes.push(Statement::from_tokens(input)?);
+        }
+
+        Ok(Self { _nodes: nodes })
+    }
+}
 
 pub trait FromTokens<'a>: Sized {
     type Error;
@@ -66,6 +87,8 @@ impl<T> Spanned<T> {
         Span {
             start: self.span.start,
             end: other.span.end,
+            line: self.span.line,
+            col: self.span.col
         }
     }
 }

@@ -3,8 +3,17 @@ name = "flakec-backend-llvm"
 version = "0.0.0"
 edition = "2021"
 
-[dependencies]
 
+[dependencies.flakec_middle]
+package = "flakec-middle"
+path = "../flakec-middle"
+
+[dependencies.flakec_backend]
+package = "flakec-backend"
+path = "../flakec-backend"
 
 [features]
 flakec_dep_of_compiler = []
+
+[dependencies]
+inkwell = { version = "0.4.0", features = ["llvm14-0"]}

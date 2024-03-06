@@ -11,9 +11,7 @@ use lexer::{
 };
 
 use crate::{
-    operator::{parse_operator, Operator, Operator_},
-    value::{self, parse_value, Value, Value_},
-    ParseError,
+    expect_token, operator::{parse_operator, Operator, Operator_}, parse, types::Type, value::{self, parse_value, Value, Value_}, ParseError
 };
 
 #[derive(Debug, Clone)]
@@ -43,6 +41,10 @@ pub enum Expression {
         name: String,
         args: Vec<Expression>,
     },
+    Cast {
+        into: Type,
+        child: Box<Expression>
+    }
 }
 
 pub fn restore_on_err<'a, T, F>(
@@ -133,6 +135,17 @@ pub fn parse_value_expr<'a>(
             _ = input.next();
 
             Ok(res)
+        },
+        // Type Cast
+        TokenKind::Basic(BasicToken::LBracket) => { // [<target>]<expr>
+            _ = input.next();
+            let ty = parse::<Type>(input)?;
+
+            _ = expect_token(input, TokenKind::Basic(BasicToken::RBracket))?;
+
+            let res = parse_expr(input)?;
+
+            Ok(Expression::Cast { into: ty, child: res.into() })
         }
         _ => {
             if tok.get_type() == TokenType::Operator {
@@ -144,6 +157,7 @@ pub fn parse_value_expr<'a>(
     }
 }
 
+/// Parses an [Expression].
 pub fn parse_expr<'a>(
     input: &mut TokenStream<'a>,
 ) -> Result<Expression, ParseError<'a, Infallible>> {

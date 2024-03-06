@@ -1,4 +1,4 @@
-use std::convert::Infallible;
+use std::{convert::Infallible, marker::PhantomData};
 
 use lexer::{
     keyword,
@@ -6,9 +6,7 @@ use lexer::{
 };
 
 use crate::{
-    expect_token,
-    expression::{parse_expr, Expression},
-    parse, FromTokens, ParseError,
+    expect_token, expression::{parse_expr, Expression}, parse, types::Type, FromTokens, ParseError
 };
 
 #[derive(Debug, Clone)]
@@ -33,7 +31,7 @@ pub struct Return {
 #[derive(Debug, Clone)]
 pub struct Let {
     pub var_name: String,
-    pub ty_name: Option<String>,
+    pub ty: Option<Type>,
     pub initale_value: Option<Expression>,
 }
 
@@ -59,11 +57,21 @@ impl<'a> FromTokens<'a> for Let {
             _ => return Err(ParseError::UnexpectedToken(tok))
         };
 
+        let mut ty = None;
+
+        if input.peek().ok_or(ParseError::UnexpectedEndOfFile)?.kind()
+            == &TokenKind::Basic(BasicToken::Colon)
+        {
+            _ = input.next();
+
+            ty = Some(parse(input)?);
+        };
+
         if input.peek().ok_or(ParseError::UnexpectedEndOfFile)?.kind()
             == &TokenKind::Basic(BasicToken::Semicolon)
         {
             _ = input.next();
-            Ok(Self { var_name: var_name.to_owned(), initale_value: None, ty_name: None })
+            Ok(Self { var_name: var_name.to_owned(), initale_value: None, ty })
         } else {
             _ = expect_token(input, TokenKind::Basic(BasicToken::Eq))?;
 
@@ -71,7 +79,7 @@ impl<'a> FromTokens<'a> for Let {
 
             _ = expect_token(input, TokenKind::Basic(BasicToken::Semicolon))?;
 
-            Ok(Self { var_name: var_name.to_owned(), initale_value: Some(val), ty_name: None })
+            Ok(Self { var_name: var_name.to_owned(), initale_value: Some(val), ty})
         }
     }
 }

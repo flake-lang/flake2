@@ -1,6 +1,6 @@
 let a = 2;
 
-let b = 3;
+let b: u32 = [u32]a(1);
 
 let c = a + b;
 

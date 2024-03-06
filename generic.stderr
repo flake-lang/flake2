@@ -1,0 +1,4 @@
+error: {error}
+-> at {ln}:{cn}
+    {line}
+ = {message}

@@ -4,13 +4,15 @@ use std::fmt::Debug;
 
 #[derive(Clone, Copy, Eq, PartialEq, Default)]
 pub struct Span{
+    pub col: u32,
+    pub line: u32,
     pub start: usize,
     pub end: usize
 }
 
 impl Span{
     pub fn combine_with(&self, other: Span) -> Span{
-        Span { start: self.start, end: other.end }
+        Span { col: self.col, start: self.start, end: other.end, line: self.line }
     }
 }
 

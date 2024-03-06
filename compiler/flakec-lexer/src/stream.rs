@@ -35,6 +35,8 @@ fn lexgen_to_token(
             span: Span {
                 start: start.byte_idx,
                 end: end.byte_idx,
+                line: start.line,
+                col: start.col
             },
         }),
         Err(_) => None,

@@ -4,10 +4,9 @@ version = "0.0.0"
 edition = "2021"
 
 
-[dependencies.lexer]
-package = "flakec-lexer"
-path = "../flakec-lexer"
-features = ["flakec_dep_of_compiler","use_const"]
+[dependencies.flakec_middle]
+package = "flakec-middle"
+path = "../flakec-middle"
 
 
 [features]

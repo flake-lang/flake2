@@ -4,3 +4,13 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
+
+[dependencies.ast]
+package = "flakec-ast"
+path = "../flakec-ast"
+features = ["flakec_dep_of_compiler"]
+
+[dependencies.lexer]
+package = "flakec-lexer"
+path = "../flakec-lexer"
+features = ["flakec_dep_of_compiler","use_const"]

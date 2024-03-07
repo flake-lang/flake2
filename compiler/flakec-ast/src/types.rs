@@ -1,11 +1,15 @@
 //! [Type]
 
-use std::convert::Infallible;
+use std::{convert::Infallible, fmt::Display};
 use lexer::token::TokenKind;
 use crate::{FromTokens, ParseError};
 
+pub const UINT_UNKNOWN: Type = Type::UInt { bits: 0 };
+pub const INT_UNKNOWN: Type = Type::Int { bits: 0 };
+
 /// Flakec Frontend Types.
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Type {
     /// Signed Int.
     Int { bits: u8 },
@@ -19,8 +23,19 @@ pub enum Type {
     Never,
     /// The Void type
     Void,
-    /// Fallback Type...! FIXME!
+    // Bool
+    Bool,
+    /// Character
+    Char,
+    /// User-defined
     Custom(String),
+    /// Generic User-defined
+    GenericCustom {
+        name: String,
+        args: Vec<Type>
+    },
+
+    _Uninitialized(Box<Type>)
 }
 
 impl<'a> FromTokens<'a> for Type {
@@ -51,6 +66,7 @@ impl<'a> FromTokens<'a> for Type {
 
             // Void and Never(!)
             Identifier("void") => Ok(Type::Void),
+            Identifier("char") => Ok(Type::Char),
             Basic(ExplMark) => Ok(Type::Never),
 
             // Pointers
@@ -66,3 +82,46 @@ impl<'a> FromTokens<'a> for Type {
         }
     }
 }
+
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Int { bits: 8 } => f.write_str("i8"),
+            Type::Int { bits: 16 } => f.write_str("i16"),
+            Type::Int { bits: 32 } => f.write_str("i32"),
+            Type::Int { bits: 64 } => f.write_str("i64"),
+            Type::Int { .. } => f.write_str("<unknown-width-int>"), 
+            Type::UInt { bits: 8 } => f.write_str("u8"),
+            Type::UInt { bits: 16 } => f.write_str("u16"),
+            Type::UInt { bits: 32 } => f.write_str("u32"),
+            Type::UInt { bits: 64 } => f.write_str("u64"),
+            Type::UInt { .. } => f.write_str("<unknown-width-uint>"),
+            Type::Array { elem_ty, len } => f.write_fmt(format_args!("{}[{}]", elem_ty, len)),
+            Type::Pointer { target_ty } => f.write_fmt(format_args!("*[{}]", target_ty)),
+            Type::Never => f.write_str("!"),
+            Type::Void => f.write_str("void"),
+            Type::Bool => f.write_str("bool"),
+            Type::Char => f.write_str("char"),
+            Type::Custom(s) => f.write_str(s.as_str()),
+            Type::GenericCustom { .. } => todo!(),
+            Type::_Uninitialized(t) => f.write_str(t.to_string().as_str()),
+            _ => Ok(())
+        }
+    }
+}
+
+impl Type{
+    pub fn is_pointer(&self) -> bool{
+        match self {
+            Self::Pointer { .. } => true,
+            _ => false
+        }
+    }
+
+    pub fn is_int<const W: u8>(&self) -> bool{
+        match self {
+            Self::Int { bits } | Self::UInt { bits } => bits == &W,
+            _ => false
+        }
+    }
+} 

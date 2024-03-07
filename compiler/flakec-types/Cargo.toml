@@ -1,0 +1,11 @@
+[package]
+name = "flakec-types"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0.57"
+
+[dependencies.flakec_middle]
+package = "flakec-middle"
+path = "../flakec-middle"

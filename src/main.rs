@@ -1,20 +1,30 @@
-use std::fmt::Debug;
+use std::{error::Error, fmt::Debug};
 
 use ast::{ParseError, AST};
 use lexer::stream::TokenStream;
+use types::TypePass;
 
 
 pub fn main(){
     let input = include_str!("../test.fl");
     let mut toks = TokenStream::new(input);
     
-    let ast = match AST::parse(&mut toks){
+    let mut ast = match AST::parse(&mut toks){
         Ok(v) => v,
         Err(e) => {
             display_error(e);
             return;
         },
     };
+
+    if let Err(type_err) = ast.run_pass(TypePass::new()){
+        eprintln!(
+            include_str!("../type.stderr"),
+            error = type_err.to_string()
+        );
+
+        return;
+    }
 
     dbg!(ast);
 }

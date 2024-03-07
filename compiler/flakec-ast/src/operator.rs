@@ -9,7 +9,7 @@ use crate::{ParseError, Spanned};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Operator_ {
-    pub(self) _token: BasicToken,
+    pub _token: BasicToken,
     pub(self) _is_cmp: bool,
 }
 

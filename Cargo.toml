@@ -12,8 +12,10 @@ members = [
     "compiler/flakec-ast",
     "compiler/flakec-backend",
     "compiler/flakec-backend-llvm",
-    "compiler/flakec-codegen"
-, "compiler/flakec-middle"]
+    "compiler/flakec-codegen",
+    "compiler/flakec-middle",
+    "compiler/flakec-types",
+]
 
 [dependencies.lexer]
 package = "flakec-lexer"
@@ -30,3 +32,6 @@ package = "flakec-ast"
 path = "compiler/flakec-ast"
 features = ["flakec_dep_of_compiler"]
 
+[dependencies.types]
+package = "flakec-types"
+path = "compiler/flakec-types"

@@ -1,12 +1,15 @@
 use std::{convert::Infallible, fmt::Debug, ops::Deref};
 
 use lexer::{span::Span, stream::TokenStream, token::{Token, TokenKind}};
+use pass::{Pass, PassKind};
 use statement::Statement;
 
 pub mod expression;
 pub mod operator;
 pub mod statement;
 pub mod value;
+pub mod pass;
+pub mod token;
 pub mod types;
 
 #[derive(Debug, Clone)]
@@ -33,6 +36,20 @@ impl<'a> AST<'a>{
         }
 
         Ok(Self { _nodes: nodes })
+    }
+
+    pub fn run_pass<T>(&mut self, pass: T) -> Result<(), T::Error>
+    where
+        T:  Pass<'a>
+    {
+        let mut pass_local = pass;
+        if T::kind() == PassKind::Standard {
+            Ok(pass_local.run(self)?)
+        }else if T::kind() == PassKind::Check {
+            Ok(pass_local.check(self)?)
+        } else  {
+            unreachable!()
+        }
     }
 }
 
@@ -93,10 +110,45 @@ impl<T> Spanned<T> {
     }
 }
 
+macro_rules! ast_struct {
+    {
+        struct $name:ident { $($sub:ident: $sub_ty:ty), *};
+    } => {
+        #[allow(unused)]
+        #[derive(Debug, Clone)]
+        struct $name { $($sub: $sub_ty), *}
+
+        impl<'a> FromTokens<'a> for $name {
+            type Error = Infallible;
+
+            fn from_tokens(
+                _input: &mut lexer::stream::TokenStream<'a>,
+            ) -> Result<Self, crate::ParseError<'a, Self::Error>> {
+                Ok(Self {
+                    $($sub: crate::parse(_input)?),*
+                })
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ParseError<'a, T> {
     UnexpectedToken(Token<'a>),
     UnexpectedEndOfFile,
 
     Custom(T),
+}
+use crate::types::Type;
+
+ast_struct!{
+    struct Type2 {
+        t1: Type,
+        t2: Type
+    };
+}
+
+#[test]
+fn feature() {
+    
 }

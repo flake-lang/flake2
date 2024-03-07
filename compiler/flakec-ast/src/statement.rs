@@ -57,7 +57,7 @@ impl<'a> FromTokens<'a> for Let {
             _ => return Err(ParseError::UnexpectedToken(tok))
         };
 
-        let mut ty = None;
+        let mut ty: Option<Type> = None;
 
         if input.peek().ok_or(ParseError::UnexpectedEndOfFile)?.kind()
             == &TokenKind::Basic(BasicToken::Colon)
@@ -71,7 +71,7 @@ impl<'a> FromTokens<'a> for Let {
             == &TokenKind::Basic(BasicToken::Semicolon)
         {
             _ = input.next();
-            Ok(Self { var_name: var_name.to_owned(), initale_value: None, ty })
+            Ok(Self { var_name: var_name.to_owned(), initale_value: None, ty: ty.map(|v|Type::_Uninitialized(v.into())) })
         } else {
             _ = expect_token(input, TokenKind::Basic(BasicToken::Eq))?;
 
@@ -146,6 +146,17 @@ impl<'a> FromTokens<'a> for Statement<'a>{
             TokenKind::Keyword(keyword::Keyword::Let) => Ok(Self::Let(parse(_input)?)),
             TokenKind::Identifier(_) => Ok(Self::Assignment(parse(_input)?)),
             _ => todo!()
+        }
+    }
+}
+
+impl<'a> Statement<'a> {
+    pub fn exprs(&'a self) -> Vec<&'a Expression>{
+        match self {
+            Self::Let(Let { initale_value: Some(expr), ..}) => vec![expr],
+            Self::Return(Return { value: Some(expr) }) => vec![expr],
+            Self::Assignment(Assignment { value: expr, .. }) => vec![expr],
+            _ => vec![]
         }
     }
 }

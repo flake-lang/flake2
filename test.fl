@@ -1,20 +1,14 @@
-fn puts[str: *char]: u32;
+fn puts[s: *char]: u32;
 
-fn main[]: u32 {
-    % puts("Hello!");
-    return 123;
+fn main[argc: u32, argv: **char]: u32 {
+    % puts(*argv);
+    return 0;
 };
-// Casting Checks (Partially Done)
-//
-// Valid:
-// - *T -> *U
-// - T[N] -> *T
-// - *T -> usize,
-// - u8 <--> char
-// Unsafe?(Unimplemented):
-// - *T -> T[N]
-// - usize -> *T
-// Invalid:
-// - T(!Pointer) -> U(!Pointer)
-// - *T -> U(!usize)
-// - T(!Initialized) -> T(Initialized)
+
+// TODO:
+// - Array[Idx]
+// - Globals
+// - *Ptr
+// - Structs
+// - T->M
+// - glob_ptr(EXAMPLE) // <-- Get Pointer of global?

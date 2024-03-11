@@ -1,7 +1,13 @@
 pub mod codegen;
 
 use std::{
-    collections::HashMap, convert::Infallible, ffi::{CStr, CString}, marker::PhantomData, ops::Deref, path::Path, ptr::null_mut
+    collections::HashMap,
+    convert::Infallible,
+    ffi::{CStr, CString},
+    marker::PhantomData,
+    ops::Deref,
+    path::Path,
+    ptr::null_mut,
 };
 
 use codegen::LLVMBuilder;
@@ -11,7 +17,7 @@ use flakec_middle::{
         expression::Expression,
         item::{ExplicitRetType, FnArg, Function, Item},
         operator::Operator,
-        statement::{Return, Statement},
+        statement::{Let, Return, Statement},
         types::Type,
         value::Value,
         AST,
@@ -19,15 +25,32 @@ use flakec_middle::{
     lexer::token::BasicToken,
 };
 use inkwell::{
-    builder::Builder, context::{AsContextRef, Context}, llvm_sys::{
+    builder::Builder,
+    context::{AsContextRef, Context},
+    llvm_sys::{
         core::{
-            LLVMArrayType, LLVMBuildAlloca, LLVMBuildArrayAlloca, LLVMBuildCall2, LLVMBuildGlobalStringPtr, LLVMBuildInBoundsGEP2, LLVMBuildIntCast, LLVMBuildIntCast2, LLVMBuildIntToPtr, LLVMBuildNot, LLVMBuildPointerCast, LLVMBuildPtrToInt, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildStructGEP2, LLVMConstInt, LLVMConstIntOfString, LLVMConstString, LLVMConstStringInContext, LLVMFunctionType, LLVMGetArrayLength, LLVMGetElementType, LLVMGetTypeByName, LLVMGetTypeByName2, LLVMGetTypeKind, LLVMInt16Type, LLVMInt16TypeInContext, LLVMInt32Type, LLVMInt32TypeInContext, LLVMInt64Type, LLVMInt64TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMPointerType, LLVMTypeOf, LLVMVoidType, LLVMVoidTypeInContext
+            LLVMArrayType, LLVMBuildAlloca, LLVMBuildArrayAlloca, LLVMBuildCall2,
+            LLVMBuildGlobalStringPtr, LLVMBuildInBoundsGEP2, LLVMBuildIntCast, LLVMBuildIntCast2,
+            LLVMBuildIntToPtr, LLVMBuildLoad2, LLVMBuildNot, LLVMBuildPointerCast,
+            LLVMBuildPtrToInt, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildStructGEP2,
+            LLVMConstInt, LLVMConstIntOfString, LLVMConstString, LLVMConstStringInContext,
+            LLVMFunctionType, LLVMGetArrayLength, LLVMGetElementType, LLVMGetTypeByName,
+            LLVMGetTypeByName2, LLVMGetTypeKind, LLVMInt16Type, LLVMInt16TypeInContext,
+            LLVMInt32Type, LLVMInt32TypeInContext, LLVMInt64Type, LLVMInt64TypeInContext,
+            LLVMInt8Type, LLVMInt8TypeInContext, LLVMPointerType, LLVMTypeOf, LLVMVoidType,
+            LLVMVoidTypeInContext,
         },
         prelude::{LLVMBool, LLVMBuilderRef, LLVMContextRef, LLVMTypeRef, LLVMValueRef},
         LLVMContext, LLVMType, LLVMTypeKind, LLVMValue,
-    }, module::Module, passes::{PassManagerBuilder, PassManagerSubType}, types::{
+    },
+    module::Module,
+    passes::{PassManagerBuilder, PassManagerSubType},
+    types::{
         AnyType, AnyTypeEnum, AsTypeRef, BasicType as _, BasicTypeEnum, FunctionType, IntType,
-    }, values::{ArrayValue, AsValueRef, BasicValue, BasicValueEnum, FunctionValue, PointerValue}, AddressSpace
+        PointerMathType, PointerType,
+    },
+    values::{ArrayValue, AsValueRef, BasicValue, BasicValueEnum, FunctionValue, PointerValue},
+    AddressSpace,
 };
 
 #[derive(Debug)]
@@ -76,7 +99,9 @@ impl<'a> Backend<'a> for LLVMBackend<'a> {
 
         mod_builder.llvm_rep.print_to_stderr();
 
-        mod_builder.llvm_rep.write_bitcode_to_path(Path::new("test.fl.bc"));
+        mod_builder
+            .llvm_rep
+            .write_bitcode_to_path(Path::new("test.fl.bc"));
 
         Ok(())
     }
@@ -128,7 +153,6 @@ impl<'a> ModuleBuilder<'a> {
         );
 
         if let Some(_body) = func.body {
-
             let entry_block = self.context.append_basic_block(func_val, "entry");
 
             self.builder.position_at_end(entry_block);
@@ -142,7 +166,10 @@ impl<'a> ModuleBuilder<'a> {
                     .builder
                     .build_alloca(
                         unsafe {
-                            BasicTypeEnum::new(get_llvm_ty(self.context.as_ctx_ref(), arg.clone().ty))
+                            BasicTypeEnum::new(get_llvm_ty(
+                                self.context.as_ctx_ref(),
+                                arg.clone().ty,
+                            ))
                         },
                         "__arg",
                     )
@@ -155,16 +182,14 @@ impl<'a> ModuleBuilder<'a> {
                 self.locals.insert(arg.name.0.clone(), aptr);
             }
 
-            
             for stmt in _body.0 {
                 self.compile_stmt(stmt)?;
             }
 
-
             self.locals.clear();
         }
 
-        assert!(self.func_ty.insert(name.clone(), llvm_func).is_none());      
+        assert!(self.func_ty.insert(name.clone(), llvm_func).is_none());
 
         assert!(self
             .globals
@@ -173,13 +198,30 @@ impl<'a> ModuleBuilder<'a> {
 
         func_val.verify(true);
 
-
         Ok(())
     }
 
+    /// Compiles a [Statement].
     pub fn compile_stmt(&mut self, stmt: Statement<'a>) -> Result<(), LLVMError> {
         match stmt {
-            Statement::Let(_) => todo!(),
+            Statement::Let(v) => {
+                let mut initv: *mut LLVMValue = null_mut();
+                let is_uninit = v.initale_value.is_none().clone();
+                let ty = unsafe {
+                    match v.ty {
+                        Some(t) => get_llvm_ty(self.context.as_ctx_ref(), t),
+                        None => {
+                            initv = self.compile_expr(v.initale_value.unwrap())?;
+                            LLVMTypeOf(initv)
+                        }
+                    }
+                };
+                let ptr = self.create_locale(v.var_name.as_str(), ty)?;
+                if !is_uninit {
+                    assert!(!initv.is_null());
+                    unsafe { LLVMBuildStore(self.builder.as_mut_ptr(), initv, ptr) };
+                }
+            }
             Statement::Return(Return { value: None }) => unsafe {
                 LLVMBuildRetVoid(self.builder.as_mut_ptr());
             },
@@ -187,12 +229,35 @@ impl<'a> ModuleBuilder<'a> {
                 LLVMBuildRet(self.builder.as_mut_ptr(), self.compile_expr(val)?);
             },
             Statement::Assignment(a) => {
-                _ = self.compile_expr(a.value)?;
-            },
-            Statement::Expr(expr) => { _ = self.compile_expr(expr)? }
+                let ptr = self.locals.get(&a.var).unwrap().as_value_ref();
+
+                let val = self.compile_expr(a.value)?;
+
+                unsafe { LLVMBuildStore(self.builder.as_mut_ptr(), val, ptr) };
+            }
+            Statement::Expr(expr) => _ = self.compile_expr(expr)?,
         }
 
         Ok(())
+    }
+
+    pub fn create_locale(
+        &mut self,
+        name: &str,
+        ty: *mut LLVMType,
+    ) -> Result<*mut LLVMValue, LLVMError> {
+        let c_name = CString::new(name).unwrap();
+        let ptr: *mut LLVMValue;
+        unsafe {
+            ptr = LLVMBuildAlloca(self.builder.as_mut_ptr(), ty, c_name.as_ptr());
+        };
+
+        assert!(!self
+            .locals
+            .insert(name.to_owned(), unsafe { PointerValue::new(ptr) })
+            .is_some());
+
+        Ok(ptr)
     }
 
     pub fn compile_unary(
@@ -209,6 +274,16 @@ impl<'a> ModuleBuilder<'a> {
             (&BasicToken::ExplMark, LLVMTypeKind::LLVMIntegerTypeKind) => {
                 Ok(unsafe { LLVMBuildNot(self.builder.as_mut_ptr(), expr, name.as_ptr()) })
             }
+            (&BasicToken::Star, LLVMTypeKind::LLVMPointerTypeKind) => unsafe {
+                let target_ty = LLVMGetElementType(ty);
+
+                Ok(LLVMBuildLoad2(
+                    self.builder.as_mut_ptr(),
+                    target_ty,
+                    expr,
+                    name.as_ptr(),
+                ))
+            },
             (&BasicToken::Ampersand, LLVMTypeKind::LLVMArrayTypeKind) => Ok(unsafe {
                 let ptr = LLVMBuildArrayAlloca(
                     self.builder.as_mut_ptr(),
@@ -239,7 +314,12 @@ impl<'a> ModuleBuilder<'a> {
     pub fn compile_expr(&mut self, expr: Expression) -> Result<*mut LLVMValue, LLVMError> {
         match expr {
             Expression::Constant(v) => unsafe {
-                Ok(llvm_const(self.builder.as_mut_ptr(), self.context.as_ctx_ref(), v, self.exp_ret))
+                Ok(llvm_const(
+                    self.builder.as_mut_ptr(),
+                    self.context.as_ctx_ref(),
+                    v,
+                    self.exp_ret,
+                ))
             },
             Expression::Unary { op, child, .. } => self.compile_unary(op, *child),
             Expression::Binary { op, left, right } => todo!(),
@@ -391,14 +471,19 @@ unsafe fn get_llvm_ty(ctx: *mut LLVMContext, ty: Type) -> *mut LLVMType {
 }
 
 /// Crates a [LLVMValue] from a constant.
-unsafe fn llvm_const(builder: LLVMBuilderRef, ctx: *mut LLVMContext, val: Value, target: *mut LLVMType) -> *mut LLVMValue {
+unsafe fn llvm_const(
+    builder: LLVMBuilderRef,
+    ctx: *mut LLVMContext,
+    val: Value,
+    target: *mut LLVMType,
+) -> *mut LLVMValue {
     match val.deref() {
         flakec_middle::ast::value::Value_::Str(s) => {
             let cstr = CString::new(s.clone()).unwrap();
             let name = CString::new("__str").unwrap();
 
             LLVMBuildGlobalStringPtr(builder, cstr.as_ptr(), name.as_ptr())
-        },
+        }
         flakec_middle::ast::value::Value_::Number {
             is_negative: true,
             value,

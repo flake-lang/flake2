@@ -59,14 +59,13 @@ pub fn parse_unary<'a>(
     input: &mut TokenStream<'a>,
 ) -> Result<Expression, ParseError<'a, Infallible>> {
     let op = parse_operator(input)?;
-    let child = parse_value(input)?;
+    let child = parse_expr(input)?;
 
-    let span = op.combined(&child);
 
     Ok(Expression::Unary {
-        op,
-        child: Expression::Constant(child).into(),
-        span,
+        op: op.clone(),
+        child: child.into(),
+        span: op.span
     })
 }
 

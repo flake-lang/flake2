@@ -148,10 +148,10 @@ impl<'a> TypePass<'a> {
 
             let provided_ty = self._manager.infer_expr(provided.clone()).expect("internal error: failed to infer expression");
 
-            if provided_ty.compare(expected)
+           /* if provided_ty.compare(expected)
             {
                 return Err(TypeError::MismatchArgumentType(name.clone(), expected.clone(),provided_ty));
-            }
+            } */
         }
 
         Ok(())
@@ -238,7 +238,7 @@ impl<'a> TypePass<'a> {
         }
     }
 
-    pub fn check_stmt(&mut self, stmt: &Statement<'a>) -> Result<(), TypeError> {
+    pub fn check_stmt(&mut self, stmt: &mut Statement<'a>) -> Result<(), TypeError> {
         for expr in stmt.exprs() {
             self.check_expr(expr)?
         }
@@ -286,6 +286,7 @@ impl<'a> TypePass<'a> {
                 }
 
                 let var_ty = match self._manager.typeof_var(v.var.clone()) {
+                    Some(Type::_Uninitialized(t)) => t.as_ref(),
                     Some(t) => t,
                     None => return Err(TypeError::UndeclaredVariable(v.var.clone())),
                 };
@@ -298,6 +299,8 @@ impl<'a> TypePass<'a> {
                 if &val_ty != var_ty {
                     return Err(TypeError::TypeMismatch(val_ty, var_ty.clone()));
                 }
+
+                *(self._manager.variables.get_mut(&v.var).unwrap()) = var_ty.clone();
             },
             Statement::Expr(expr) => self.check_expr(expr)?
         };
@@ -331,9 +334,9 @@ impl<'a> TypePass<'a> {
 
         self._expected_ret_ty = Some(ret_ty);
 
-        if let Some(Block(stmts)) = &func.body {
+        if let Some(Block(stmts)) = &mut func.body.clone(){
             for stmt in stmts {
-                _ = self.check_stmt(&stmt)?;
+                _ = self.check_stmt(stmt)?;
             }
         }
 

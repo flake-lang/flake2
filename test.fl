@@ -1,9 +1,14 @@
-let a: u32;
 
-let b = a;
+@start
+fn main[argc: u32, argv: char]: *char {
+    return [*char][u64]0;
+};
 
+fn add[a: u32, b: u32]: u32 {
+    return b;
+};
 
-// Casting Checks (Todo)
+// Casting Checks (Partially Done)
 //
 // Valid:
 // - *T -> *U
@@ -15,5 +20,5 @@ let b = a;
 // - usize -> *T
 // Invalid:
 // - T(!Pointer) -> U(!Pointer)
-// - *T => U(!usize)
+// - *T -> U(!usize)
 // - T(!Initialized) -> T(Initialized)

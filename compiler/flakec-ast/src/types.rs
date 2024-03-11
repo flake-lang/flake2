@@ -27,6 +27,8 @@ pub enum Type {
     Bool,
     /// Character
     Char,
+    /// Const String.
+    ConstString(u64),
     /// User-defined
     Custom(String),
     /// Generic User-defined
@@ -37,6 +39,8 @@ pub enum Type {
 
     _Uninitialized(Box<Type>)
 }
+
+
 
 impl<'a> FromTokens<'a> for Type {
     type Error = Infallible;
@@ -93,6 +97,7 @@ impl Display for Type {
             Type::Int { .. } => f.write_str("<unknown-width-int>"), 
             Type::UInt { bits: 8 } => f.write_str("u8"),
             Type::UInt { bits: 16 } => f.write_str("u16"),
+            Type::ConstString(_) => f.write_str("str"),
             Type::UInt { bits: 32 } => f.write_str("u32"),
             Type::UInt { bits: 64 } => f.write_str("u64"),
             Type::UInt { .. } => f.write_str("<unknown-width-uint>"),
@@ -122,6 +127,21 @@ impl Type{
         match self {
             Self::Int { bits } | Self::UInt { bits } => bits == &W,
             _ => false
+        }
+    }
+    
+    pub fn is_any_int(&self) -> bool{
+        match self {
+            Self::Int { .. } | Self::UInt { .. } => true,
+            _ => false
+        }
+    }
+
+    pub fn compare(&self, other: &Type) -> bool {
+        if other.is_int::<0>() && self.is_any_int() {
+            true
+        }else {
+            self == other
         }
     }
 } 

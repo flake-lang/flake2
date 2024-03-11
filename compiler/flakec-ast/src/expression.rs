@@ -7,11 +7,11 @@ use std::{
 use lexer::{
     span::Span,
     stream::TokenStream,
-    token::{BasicToken, Token, TokenKind, TokenType},
+    token::{self, BasicToken, Token, TokenKind, TokenType},
 };
 
 use crate::{
-    expect_token, operator::{parse_operator, Operator, Operator_}, parse, types::Type, value::{self, parse_value, Value, Value_}, ParseError
+    ast_struct, expect_token, operator::{parse_operator, Operator, Operator_}, parse, types::Type, value::{self, parse_value, Value, Value_}, ParseError
 };
 
 #[derive(Debug, Clone)]
@@ -44,25 +44,14 @@ pub enum Expression {
     Cast {
         into: Type,
         child: Box<Expression>
-    }
+    },
 }
 
-pub fn restore_on_err<'a, T, F>(
-    f: F,
-    input: &mut TokenStream<'a>,
-) -> Result<T, ParseError<'a, Infallible>>
-where
-    F: Fn(&mut TokenStream<'a>) -> Result<T, ParseError<'a, Infallible>>,
-{
-    let old_pos = input.pos();
-
-    match f(input) {
-        Ok(v) => Ok(v),
-        err => {
-            input.set_pos(old_pos);
-            err
-        }
-    }
+ast_struct!{
+    pub struct CastSource{
+        reva_token: crate::token::RevArrow,
+        ty: Type
+    };
 }
 
 
@@ -139,6 +128,7 @@ pub fn parse_value_expr<'a>(
         // Type Cast
         TokenKind::Basic(BasicToken::LBracket) => { // [<target>]<expr>
             _ = input.next();
+
             let ty = parse::<Type>(input)?;
 
             _ = expect_token(input, TokenKind::Basic(BasicToken::RBracket))?;

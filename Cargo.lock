@@ -28,6 +28,8 @@ name = "flake-lang"
 version = "0.1.0"
 dependencies = [
  "flakec-ast",
+ "flakec-backend",
+ "flakec-backend-llvm",
  "flakec-lexer",
  "flakec-parser",
  "flakec-types",

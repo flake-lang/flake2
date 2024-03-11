@@ -53,9 +53,15 @@ pub enum BasicToken{
     Colon,
     Comma,
     PlusEq,
+    RevArrow,
     MinusEq,
     Dot,
     DotDot,
+    At,
+    Arrow,
+    FatArrow,
+    QMark,
+    Ampersand,
     DotDotDot,
 }
 

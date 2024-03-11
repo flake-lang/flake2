@@ -31,5 +31,15 @@ ast_token_structs!{
     Fn = Keyword(Keyword::Fn),
     Let = Keyword(Keyword::Let),
     Return = Keyword(Keyword::Return),
-    Eq = Basic(BasicToken::Eq)
+    Eq = Basic(BasicToken::Eq),
+    Semicolon = Basic(BasicToken::Semicolon),
+    RBracket = Basic(BasicToken::RBracket),
+    LParen = Basic(BasicToken::LParen),
+    RParen = Basic(BasicToken::RParen),
+    LBracket = Basic(BasicToken::LBracket),
+    Comma = Basic(BasicToken::Comma),
+    Colon = Basic(BasicToken::Colon),
+    Dot = Basic(BasicToken::Dot),
+    At = Basic(BasicToken::At),
+    RevArrow = Basic(BasicToken::RevArrow)
 }

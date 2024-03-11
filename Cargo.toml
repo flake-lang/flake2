@@ -32,6 +32,14 @@ package = "flakec-ast"
 path = "compiler/flakec-ast"
 features = ["flakec_dep_of_compiler"]
 
+[dependencies.llvm_backend]
+package = "flakec-backend-llvm"
+path = "compiler/flakec-backend-llvm"
+
+[dependencies.flakec_backend]
+package = "flakec-backend"
+path = "compiler/flakec-backend"
+
 [dependencies.types]
 package = "flakec-types"
 path = "compiler/flakec-types"

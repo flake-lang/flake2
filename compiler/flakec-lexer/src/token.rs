@@ -90,7 +90,7 @@ impl BasicToken{
     pub fn get_type(&self) -> TokenType{
         use BasicToken::*;
         match self {
-            Plus | Minus | Star | Slash | Percent | ExplMark => TokenType::Operator,
+            Plus | Minus | Star | Slash | Percent | ExplMark  | Ampersand => TokenType::Operator,
             EqEq | Lt | Gt | LtEq | GtEq | NotEq => TokenType::Comparison,
             Eq | PlusEq | MinusEq => TokenType::Assignment,
             _ => TokenType::Other

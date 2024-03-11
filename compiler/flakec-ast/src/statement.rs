@@ -14,6 +14,7 @@ pub enum Statement<'a> {
     Let(Let),
     Return(Return),
     Assignment(Assignment<'a>),
+    Expr(Expression)
 }
 
 /// Syntax:
@@ -140,12 +141,20 @@ impl<'a> FromTokens<'a> for Statement<'a>{
 
     fn from_tokens(
         _input: &mut lexer::stream::TokenStream<'a>,
-    ) -> Result<Self, crate::ParseError<'a, Self::Error>> {
+    ) -> Result<Self, crate::ParseError<'a, Infallible>> {
         match _input.peek().ok_or(ParseError::UnexpectedEndOfFile)?.kind() {
             TokenKind::Keyword(keyword::Keyword::Return) => Ok(Self::Return(parse(_input)?)),
             TokenKind::Keyword(keyword::Keyword::Let) => Ok(Self::Let(parse(_input)?)),
             TokenKind::Identifier(_) => Ok(Self::Assignment(parse(_input)?)),
-            _ => todo!()
+            TokenKind::Basic(BasicToken::Percent) => {
+                _ = _input.next();
+                let expr = parse_expr(_input)?;
+
+                _ = expect_token(_input, TokenKind::Basic(BasicToken::Semicolon))?;
+
+                Ok(Self::Expr(expr))
+            },
+            t => unimplemented!("{:?}", t)
         }
     }
 }
@@ -156,6 +165,7 @@ impl<'a> Statement<'a> {
             Self::Let(Let { initale_value: Some(expr), ..}) => vec![expr],
             Self::Return(Return { value: Some(expr) }) => vec![expr],
             Self::Assignment(Assignment { value: expr, .. }) => vec![expr],
+            Self::Expr(expr) => vec![expr],
             _ => vec![]
         }
     }

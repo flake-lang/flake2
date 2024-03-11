@@ -281,6 +281,10 @@ impl<'a> TypePass<'a> {
                 }  */
             }
             Statement::Assignment(v) => {
+                if v.var == "_" {
+                    return Ok(());
+                }
+
                 let var_ty = match self._manager.typeof_var(v.var.clone()) {
                     Some(t) => t,
                     None => return Err(TypeError::UndeclaredVariable(v.var.clone())),
@@ -294,7 +298,8 @@ impl<'a> TypePass<'a> {
                 if &val_ty != var_ty {
                     return Err(TypeError::TypeMismatch(val_ty, var_ty.clone()));
                 }
-            }
+            },
+            Statement::Expr(expr) => self.check_expr(expr)?
         };
 
         Ok(())

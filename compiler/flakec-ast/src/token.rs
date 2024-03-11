@@ -41,5 +41,6 @@ ast_token_structs!{
     Colon = Basic(BasicToken::Colon),
     Dot = Basic(BasicToken::Dot),
     At = Basic(BasicToken::At),
-    RevArrow = Basic(BasicToken::RevArrow)
+    RevArrow = Basic(BasicToken::RevArrow),
+    Percent = Basic(BasicToken::Percent)
 }

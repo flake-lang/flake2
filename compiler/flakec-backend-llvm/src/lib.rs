@@ -1,39 +1,33 @@
 pub mod codegen;
 
 use std::{
-    collections::HashMap,
-    convert::Infallible,
-    ffi::{CStr, CString},
-    marker::PhantomData,
-    ops::Deref,
-    ptr::null_mut,
+    collections::HashMap, convert::Infallible, ffi::{CStr, CString}, marker::PhantomData, ops::Deref, path::Path, ptr::null_mut
 };
 
+use codegen::LLVMBuilder;
 use flakec_backend::Backend;
-use flakec_middle::ast::{
-    expression::Expression,
-    item::{ExplicitRetType, FnArg, Function, Item},
-    statement::{Return, Statement},
-    types::Type,
-    value::Value,
-    AST,
+use flakec_middle::{
+    ast::{
+        expression::Expression,
+        item::{ExplicitRetType, FnArg, Function, Item},
+        operator::Operator,
+        statement::{Return, Statement},
+        types::Type,
+        value::Value,
+        AST,
+    },
+    lexer::token::BasicToken,
 };
 use inkwell::{
-    builder::Builder,
-    context::{AsContextRef, Context},
-    llvm_sys::{
+    builder::Builder, context::{AsContextRef, Context}, llvm_sys::{
         core::{
-            LLVMArrayType, LLVMBuildInBoundsGEP2, LLVMBuildIntCast, LLVMBuildIntCast2, LLVMBuildIntToPtr, LLVMBuildNot, LLVMBuildPointerCast, LLVMBuildPtrToInt, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStructGEP2, LLVMConstInt, LLVMConstIntOfString, LLVMConstString, LLVMConstStringInContext, LLVMFunctionType, LLVMGetTypeByName, LLVMGetTypeByName2, LLVMGetTypeKind, LLVMInt16Type, LLVMInt16TypeInContext, LLVMInt32Type, LLVMInt32TypeInContext, LLVMInt64Type, LLVMInt64TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMPointerType, LLVMTypeOf, LLVMVoidType, LLVMVoidTypeInContext
+            LLVMArrayType, LLVMBuildAlloca, LLVMBuildArrayAlloca, LLVMBuildCall2, LLVMBuildGlobalStringPtr, LLVMBuildInBoundsGEP2, LLVMBuildIntCast, LLVMBuildIntCast2, LLVMBuildIntToPtr, LLVMBuildNot, LLVMBuildPointerCast, LLVMBuildPtrToInt, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMBuildStructGEP2, LLVMConstInt, LLVMConstIntOfString, LLVMConstString, LLVMConstStringInContext, LLVMFunctionType, LLVMGetArrayLength, LLVMGetElementType, LLVMGetTypeByName, LLVMGetTypeByName2, LLVMGetTypeKind, LLVMInt16Type, LLVMInt16TypeInContext, LLVMInt32Type, LLVMInt32TypeInContext, LLVMInt64Type, LLVMInt64TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMPointerType, LLVMTypeOf, LLVMVoidType, LLVMVoidTypeInContext
         },
-        prelude::{LLVMBool, LLVMContextRef, LLVMTypeRef},
+        prelude::{LLVMBool, LLVMBuilderRef, LLVMContextRef, LLVMTypeRef, LLVMValueRef},
         LLVMContext, LLVMType, LLVMTypeKind, LLVMValue,
-    },
-    module::Module,
-    types::{
+    }, module::Module, passes::{PassManagerBuilder, PassManagerSubType}, types::{
         AnyType, AnyTypeEnum, AsTypeRef, BasicType as _, BasicTypeEnum, FunctionType, IntType,
-    },
-    values::{ArrayValue, AsValueRef, BasicValue, BasicValueEnum, FunctionValue, PointerValue},
-    AddressSpace,
+    }, values::{ArrayValue, AsValueRef, BasicValue, BasicValueEnum, FunctionValue, PointerValue}, AddressSpace
 };
 
 #[derive(Debug)]
@@ -77,7 +71,12 @@ impl<'a> Backend<'a> for LLVMBackend<'a> {
             }
         }
 
+        mod_builder.llvm_rep.set_source_file_name("test.fl");
+        mod_builder.llvm_rep.verify()?;
+
         mod_builder.llvm_rep.print_to_stderr();
+
+        mod_builder.llvm_rep.write_bitcode_to_path(Path::new("test.fl.bc"));
 
         Ok(())
     }
@@ -98,7 +97,9 @@ struct ModuleBuilder<'a> {
     llvm_rep: Module<'a>,
     builder: Builder<'a>,
     exp_ret: LLVMTypeRef,
-    locals: HashMap<String, PointerValue<'a>>
+    locals: HashMap<String, PointerValue<'a>>,
+    globals: HashMap<String, *mut LLVMValue>,
+    func_ty: HashMap<String, LLVMFunction<'a>>,
 }
 
 impl<'a> ModuleBuilder<'a> {
@@ -109,11 +110,13 @@ impl<'a> ModuleBuilder<'a> {
             name,
             builder: context.create_builder(),
             exp_ret: unsafe { LLVMInt32TypeInContext(context.as_ctx_ref()) },
-            locals: HashMap::new()
+            locals: HashMap::new(),
+            globals: HashMap::new(),
+            func_ty: HashMap::new(),
         }
     }
 
-    pub fn comnpile_function(& mut self, func: Function<'a>) -> Result<(), LLVMError> {
+    pub fn comnpile_function(&mut self, func: Function<'a>) -> Result<(), LLVMError> {
         let name = func.name.0.clone();
         let mut llvm_func =
             unsafe { LLVMFunction::from_ast(self.context.as_ctx_ref(), func.clone()) };
@@ -124,37 +127,52 @@ impl<'a> ModuleBuilder<'a> {
             None,
         );
 
-        let entry_block = self.context.append_basic_block(func_val, "entry");
-
-        self.builder.position_at_end(entry_block);
-
-        if let Some(v) = func_val.get_type().get_return_type() {
-            self.exp_ret = v.as_type_ref();
-        }
-
-        for (arg, param) in (func.args.0).iter().zip(func_val.get_params().iter()) {
-            let aptr = self.builder.build_alloca(
-                unsafe { BasicTypeEnum::new(
-                    get_llvm_ty(self.context.as_ctx_ref(), arg.clone().ty)
-                ) },
-                "__arg"
-            ).map_err(|e|LLVMError::Builder(e))?;
-
-            self.builder.build_store(aptr, *param)
-                .map_err(|e|LLVMError::Builder(e))?;
-
-            self.locals.insert(arg.name.0.clone(), aptr);
-        }
-
         if let Some(_body) = func.body {
+
+            let entry_block = self.context.append_basic_block(func_val, "entry");
+
+            self.builder.position_at_end(entry_block);
+
+            if let Some(v) = func_val.get_type().get_return_type() {
+                self.exp_ret = v.as_type_ref();
+            }
+
+            for (arg, param) in (func.args.0).iter().zip(func_val.get_params().iter()) {
+                let aptr = self
+                    .builder
+                    .build_alloca(
+                        unsafe {
+                            BasicTypeEnum::new(get_llvm_ty(self.context.as_ctx_ref(), arg.clone().ty))
+                        },
+                        "__arg",
+                    )
+                    .map_err(|e| LLVMError::Builder(e))?;
+
+                self.builder
+                    .build_store(aptr, *param)
+                    .map_err(|e| LLVMError::Builder(e))?;
+
+                self.locals.insert(arg.name.0.clone(), aptr);
+            }
+
+            
             for stmt in _body.0 {
                 self.compile_stmt(stmt)?;
             }
+
+
+            self.locals.clear();
         }
+
+        assert!(self.func_ty.insert(name.clone(), llvm_func).is_none());      
+
+        assert!(self
+            .globals
+            .insert(name, func_val.as_value_ref(),)
+            .is_none());
 
         func_val.verify(true);
 
-        self.locals.clear();
 
         Ok(())
     }
@@ -168,31 +186,98 @@ impl<'a> ModuleBuilder<'a> {
             Statement::Return(Return { value: Some(val) }) => unsafe {
                 LLVMBuildRet(self.builder.as_mut_ptr(), self.compile_expr(val)?);
             },
-            Statement::Assignment(_) => todo!(),
+            Statement::Assignment(a) => {
+                _ = self.compile_expr(a.value)?;
+            },
+            Statement::Expr(expr) => { _ = self.compile_expr(expr)? }
         }
 
         Ok(())
     }
 
+    pub fn compile_unary(
+        &mut self,
+        op: Operator,
+        child: Expression,
+    ) -> Result<*mut LLVMValue, LLVMError> {
+        let expr = self.compile_expr(child)?;
+        let name = CString::new("").unwrap();
+
+        let ty = unsafe { LLVMTypeOf(expr) };
+
+        match (&op._token, unsafe { LLVMGetTypeKind(ty) }) {
+            (&BasicToken::ExplMark, LLVMTypeKind::LLVMIntegerTypeKind) => {
+                Ok(unsafe { LLVMBuildNot(self.builder.as_mut_ptr(), expr, name.as_ptr()) })
+            }
+            (&BasicToken::Ampersand, LLVMTypeKind::LLVMArrayTypeKind) => Ok(unsafe {
+                let ptr = LLVMBuildArrayAlloca(
+                    self.builder.as_mut_ptr(),
+                    LLVMGetElementType(ty),
+                    LLVMConstInt(
+                        LLVMInt32TypeInContext(self.context.as_ctx_ref()),
+                        LLVMGetArrayLength(ty) as u64,
+                        0,
+                    ),
+                    name.as_ptr(),
+                );
+
+                LLVMBuildStore(self.builder.as_mut_ptr(), expr, ptr);
+
+                ptr
+            }),
+            (&BasicToken::Ampersand, _) => Ok(unsafe {
+                let ptr = LLVMBuildAlloca(self.builder.as_mut_ptr(), ty, name.as_ptr());
+
+                LLVMBuildStore(self.builder.as_mut_ptr(), expr, ptr);
+
+                ptr
+            }),
+            _ => unimplemented!(),
+        }
+    }
+
     pub fn compile_expr(&mut self, expr: Expression) -> Result<*mut LLVMValue, LLVMError> {
         match expr {
             Expression::Constant(v) => unsafe {
-                Ok(llvm_const(self.context.as_ctx_ref(), v, self.exp_ret))
+                Ok(llvm_const(self.builder.as_mut_ptr(), self.context.as_ctx_ref(), v, self.exp_ret))
             },
-            Expression::Unary { op, child, span } => todo!(),
+            Expression::Unary { op, child, .. } => self.compile_unary(op, *child),
             Expression::Binary { op, left, right } => todo!(),
             Expression::Variable { name, span } => {
-                let vptr = *self.locals.get(name.as_str()).unwrap();
+                let vptr = *self
+                    .locals
+                    .get(name.as_str())
+                    .or(self
+                        .globals
+                        .get(self.name)
+                        .map(|v| unsafe { PointerValue::new(*v) })
+                        .as_ref())
+                    .unwrap();
 
                 match self.builder.build_load(vptr, name.as_str()) {
                     Ok(v) => Ok(v.as_value_ref()),
-                    Err(e) => Err(LLVMError::Builder(e))
+                    Err(e) => Err(LLVMError::Builder(e)),
                 }
-            },
-            Expression::FunctionCall { name, args } => todo!(),
-            Expression::Cast { into, child } => unsafe {
-                self.compile_cast(into, *child)
             }
+            Expression::FunctionCall { name, args } => {
+                let func_ty = self.func_ty.get(&name).unwrap().clone();
+
+                let mut params: Vec<*mut LLVMValue> = vec![];
+
+                let old_exp_ret = self.exp_ret;
+
+                for (arg, exp_ty) in args.into_iter().zip(func_ty.args.iter()) {
+                    self.exp_ret = *exp_ty;
+                    params.push(self.compile_expr(arg)?);
+                }
+
+                self.exp_ret = old_exp_ret;
+
+                let func = *self.globals.get(&name.clone()).unwrap();
+
+                unsafe { Ok(llvm_call(self.builder.as_mut_ptr(), func_ty, func, params)) }
+            }
+            Expression::Cast { into, child } => unsafe { self.compile_cast(into, *child) },
             _ => todo!(),
         }
     }
@@ -215,60 +300,72 @@ impl<'a> ModuleBuilder<'a> {
                     name.as_ptr(),
                 ))
             }
-            (
-                Type::UInt { .. } | Type::Char | Type::Bool,
-                LLVMTypeKind::LLVMIntegerTypeKind,
-            ) => Ok(LLVMBuildIntCast2(
-                self.builder.as_mut_ptr(),
-                val,
-                get_llvm_ty(self.context.as_ctx_ref(), target),
-                0,
-                name.as_ptr(),
-            )),
-            (
-                Type::Int { .. },
-                LLVMTypeKind::LLVMIntegerTypeKind,
-            ) => Ok(LLVMBuildIntCast2(
+            (Type::UInt { .. } | Type::Char | Type::Bool, LLVMTypeKind::LLVMIntegerTypeKind) => {
+                Ok(LLVMBuildIntCast2(
+                    self.builder.as_mut_ptr(),
+                    val,
+                    get_llvm_ty(self.context.as_ctx_ref(), target),
+                    0,
+                    name.as_ptr(),
+                ))
+            }
+            (Type::Int { .. }, LLVMTypeKind::LLVMIntegerTypeKind) => Ok(LLVMBuildIntCast2(
                 self.builder.as_mut_ptr(),
                 val,
                 get_llvm_ty(self.context.as_ctx_ref(), target),
                 1,
                 name.as_ptr(),
             )),
-            (
-                Type::Pointer { target_ty },
-                LLVMTypeKind::LLVMIntegerTypeKind
-            ) => Ok(LLVMBuildIntToPtr(
+            (Type::Pointer { target_ty }, LLVMTypeKind::LLVMIntegerTypeKind) => {
+                Ok(LLVMBuildIntToPtr(
+                    self.builder.as_mut_ptr(),
+                    val,
+                    get_llvm_ty(self.context.as_ctx_ref(), target),
+                    name.as_ptr(),
+                ))
+            }
+            (Type::Int { bits: 64 }, LLVMTypeKind::LLVMPointerTypeKind) => Ok(LLVMBuildPtrToInt(
                 self.builder.as_mut_ptr(),
                 val,
                 get_llvm_ty(self.context.as_ctx_ref(), target),
-                name.as_ptr()
+                name.as_ptr(),
             )),
-            (
-                Type::Int { bits: 64 },
-                LLVMTypeKind::LLVMPointerTypeKind
-            ) => Ok(LLVMBuildPtrToInt(
-                self.builder.as_mut_ptr(),
-                val,
-                get_llvm_ty(self.context.as_ctx_ref(), target),
-                name.as_ptr()
-            )),
-            (
-                Type::Pointer { target_ty },
-                LLVMTypeKind::LLVMArrayTypeKind
-            ) => {
+            (Type::Pointer { target_ty }, LLVMTypeKind::LLVMArrayTypeKind) => {
                 Ok(LLVMBuildStructGEP2(
                     self.builder.as_mut_ptr(),
                     get_llvm_ty(self.context.as_ctx_ref(), target),
                     val,
                     0,
-                    name.as_ptr()
-
+                    name.as_ptr(),
                 ))
-            },
-            (_, _) => todo!()
+            }
+            (_l, _r) => todo!("r={:?},l={:?}", _r, _l),
         }
     }
+}
+
+/// Calls a [LLVMFunction] with the given Function Pointer.
+unsafe fn llvm_call(
+    builder: LLVMBuilderRef,
+    mut func_ty: LLVMFunction,
+    p_func: *mut LLVMValue,
+    mut params: Vec<*mut LLVMValue>,
+) -> *mut LLVMValue {
+    #[cfg(debug_assertions)]
+    assert_eq!(
+        LLVMGetTypeKind(LLVMTypeOf(p_func)),
+        LLVMTypeKind::LLVMPointerTypeKind
+    );
+    let name = CString::new("").unwrap();
+
+    LLVMBuildCall2(
+        builder,
+        func_ty.as_type(),
+        p_func,
+        params.as_mut_ptr(),
+        params.len() as u32,
+        name.as_ptr(),
+    )
 }
 
 /// Converts a Frontend [Type] into a [LLVMTypeRef].
@@ -294,14 +391,14 @@ unsafe fn get_llvm_ty(ctx: *mut LLVMContext, ty: Type) -> *mut LLVMType {
 }
 
 /// Crates a [LLVMValue] from a constant.
-unsafe fn llvm_const(ctx: *mut LLVMContext, val: Value, target: *mut LLVMType) -> *mut LLVMValue {
+unsafe fn llvm_const(builder: LLVMBuilderRef, ctx: *mut LLVMContext, val: Value, target: *mut LLVMType) -> *mut LLVMValue {
     match val.deref() {
-        flakec_middle::ast::value::Value_::Str(s) => LLVMConstStringInContext(
-            ctx,
-            CString::new(s.as_str()).unwrap().as_ptr(),
-            s.len() as u32,
-            0,
-        ),
+        flakec_middle::ast::value::Value_::Str(s) => {
+            let cstr = CString::new(s.clone()).unwrap();
+            let name = CString::new("__str").unwrap();
+
+            LLVMBuildGlobalStringPtr(builder, cstr.as_ptr(), name.as_ptr())
+        },
         flakec_middle::ast::value::Value_::Number {
             is_negative: true,
             value,
@@ -320,6 +417,7 @@ unsafe fn llvm_const(ctx: *mut LLVMContext, val: Value, target: *mut LLVMType) -
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct LLVMFunction<'ctx> {
     ret_ty: *mut LLVMType,
     args: Vec<*mut LLVMType>,

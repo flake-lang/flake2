@@ -8,6 +8,7 @@ pub trait Backend<'a>: 'a {
     /// Compiles an [AST].
     fn compile(&'a mut self, _: flakec_middle::ast::AST) -> Result<(), Box<dyn StdError>>;
 
+
     #[cold]
     fn name(&'a self) -> &'a str;
     #[cold]

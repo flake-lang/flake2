@@ -64,14 +64,14 @@ pub struct LLVMState {
 }
 
 pub struct LLVMBackend<'a> {
-    state: LLVMState,
+    _state: LLVMState,
     _phantom: PhantomData<&'a ()>,
 }
 
 impl<'a> LLVMBackend<'a> {
     pub fn new() -> Self {
         Self {
-            state: LLVMState {
+            _state: LLVMState {
                 context: Context::create(),
             },
             _phantom: PhantomData,
@@ -84,7 +84,7 @@ impl<'a> Backend<'a> for LLVMBackend<'a> {
         &'a mut self,
         input: flakec_middle::ast::AST,
     ) -> Result<(), Box<(dyn std::error::Error + 'static)>> {
-        let mut ctx = Context::create();
+        let ctx = Context::create();
         let mut mod_builder = ModuleBuilder::new(&ctx, "main");
 
         for item in input._nodes {
@@ -465,12 +465,12 @@ unsafe fn get_llvm_ty(ctx: *mut LLVMContext, ty: Type) -> *mut LLVMType {
             let c_name = CString::new(n).unwrap();
             LLVMGetTypeByName2(ctx, c_name.as_ptr())
         }
-        Type::_Uninitialized(t) => get_llvm_ty(ctx, *t),
+        Type::_Uninitialized(t) => get_llvm_ty(ctx, *t), // <--- Already handled by the Frontend.
         _ => unimplemented!(),
     }
 }
 
-/// Crates a [LLVMValue] from a constant.
+/// Creates a [LLVMValueRef] from a constant.
 unsafe fn llvm_const(
     builder: LLVMBuilderRef,
     ctx: *mut LLVMContext,

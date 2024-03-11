@@ -1,7 +1,10 @@
+// external symbole
 fn puts[s: *char]: u32;
 
+// main function
 fn main[argc: u32, argv: **char]: u32 {
-    % puts(*argv);
+    % puts("Program Path: ");
+    % puts(*argv); // <-- Print the first argument(executable path)... :)
     return 0;
 };
 
